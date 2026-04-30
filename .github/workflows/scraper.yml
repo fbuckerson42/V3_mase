@@ -39,8 +39,17 @@ jobs:
         run: |
           python main.py migrate
       
-      # TEMP: Skip auth - using existing token from database
-      
+      - name: Authenticate (get token)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          KEYCRM_BASE_URL: ${{ secrets.KEYCRM_BASE_URL }}
+          KEYCRM_WEB_URL: ${{ secrets.KEYCRM_WEB_URL }}
+          KEYCRM_LOGIN: ${{ secrets.KEYCRM_LOGIN }}
+          KEYCRM_PASSWORD: ${{ secrets.KEYCRM_PASSWORD }}
+          GITHUB_ACTIONS: true
+        run: |
+          python main.py auth
+       
       - name: Run scraper
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -49,6 +58,7 @@ jobs:
           KEYCRM_FILTERS_URL: ${{ secrets.KEYCRM_FILTERS_URL }}
           KEYCRM_LOGIN: ${{ secrets.KEYCRM_LOGIN }}
           KEYCRM_PASSWORD: ${{ secrets.KEYCRM_PASSWORD }}
+          GITHUB_ACTIONS: true
           ORDERS_PER_PAGE: 100
           REQUEST_TIMEOUT: 30
           REQUEST_DELAY: 0.5

@@ -1,10 +1,6 @@
 from typing import Optional, Dict, Any, List
 from datetime import datetime, date
-import logging
-import json
 from config.settings import settings
-
-logger = logging.getLogger(__name__)
 
 
 class OrderParser:
@@ -17,13 +13,10 @@ class OrderParser:
             return cls._status_cache
         
         try:
-            logger.info("Loading statuses from API...")
             response = client.get_statuses()
             statuses = response.get('data', [])
             cls._status_cache = {s['id']: s['name'] for s in statuses}
-            logger.info(f"Loaded {len(cls._status_cache)} statuses from API")
-        except Exception as e:
-            logger.error(f"Failed to load statuses from API: {e}")
+        except Exception:
             cls._status_cache = {}
         
         return cls._status_cache
@@ -31,7 +24,6 @@ class OrderParser:
     @classmethod
     def get_status_name(cls, status_id: int) -> str:
         if cls._status_cache is None:
-            logger.warning("Statuses not loaded yet, returning 'Unknown'")
             return 'Unknown'
         
         return cls._status_cache.get(status_id, 'Unknown')
@@ -44,8 +36,7 @@ class OrderParser:
         try:
             dt = datetime.fromisoformat(date_string.replace('Z', '+00:00'))
             return dt.date()
-        except (ValueError, AttributeError) as e:
-            logger.warning(f"Failed to parse date '{date_string}': {e}")
+        except (ValueError, AttributeError):
             return None
     
     @classmethod
@@ -59,8 +50,7 @@ class OrderParser:
                 if value:
                     try:
                         return datetime.strptime(value, '%Y-%m-%d').date()
-                    except (ValueError, TypeError) as e:
-                        logger.warning(f"Failed to parse PRP date '{value}': {e}")
+                    except (ValueError, TypeError):
                         return None
         
         return None
@@ -98,10 +88,8 @@ class OrderParser:
             return order_data
             
         except KeyError as e:
-            logger.error(f"Missing required field in order JSON: {e}")
             raise
         except Exception as e:
-            logger.error(f"Failed to parse order: {e}")
             raise
     
     @staticmethod
@@ -110,19 +98,15 @@ class OrderParser:
         
         data = response_json.get('data', [])
         if not data:
-            logger.warning("No orders found in API response")
             return orders_data
         
         for order_json in data:
             try:
                 order_data = OrderParser.parse_order(order_json)
                 orders_data.append(order_data)
-            except Exception as e:
-                order_id = order_json.get('id', 'unknown')
-                logger.error(f"Failed to parse order {order_id}: {e}")
+            except Exception:
                 continue
         
-        logger.info(f"Parsed {len(orders_data)} orders from API response")
         return orders_data
     
     @staticmethod

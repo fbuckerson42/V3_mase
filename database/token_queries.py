@@ -1,9 +1,6 @@
-import logging
 from typing import Optional, Dict, Any
 from datetime import datetime
 from database.connection import DatabaseConnection
-
-logger = logging.getLogger(__name__)
 
 
 class TokenQueries:
@@ -35,20 +32,16 @@ class TokenQueries:
         
         try:
             self.db.execute(query, (token_type, token_value, expires_at))
-            logger.info(f"Token '{token_type}' saved to database")
         except Exception as e:
-            logger.error(f"Failed to save token: {e}")
             raise
     
     def deactivate_token(self, token_type: str = 'bearer_token') -> None:
         query = "UPDATE tokens SET is_active = FALSE, updated_at = NOW() WHERE token_type = %s"
         self.db.execute(query, (token_type,))
-        logger.info(f"Token '{token_type}' deactivated")
     
     def delete_token(self, token_type: str = 'bearer_token') -> None:
         query = "DELETE FROM tokens WHERE token_type = %s"
         self.db.execute(query, (token_type,))
-        logger.warning(f"Token '{token_type}' deleted from database")
     
     def get_all_tokens(self) -> list:
         query = """

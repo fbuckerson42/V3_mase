@@ -186,3 +186,12 @@ SETUP.md
 # ============================================
 users.txt
 status.txt
+04_login_failed.html
+04_login_failed_full.html
+04_login_failed.png
+scraper.log
+token_snapshot.json
+data/
+logs/
+output/
+artifacts/

@@ -1,8 +1,5 @@
 from typing import Dict, Any, Optional
 from urllib.parse import urlparse, parse_qs
-import logging
-
-logger = logging.getLogger(__name__)
 
 
 class URLParser:
@@ -10,8 +7,11 @@ class URLParser:
     @staticmethod
     def normalize_url(url: str) -> str:
         if '.keycrm.app' in url and '.api.keycrm.app' not in url:
-            url = url.replace('.keycrm.app', '.api.keycrm.app')
-            logger.debug(f"Converted web URL to API URL: {url}")
+            if url.startswith('https://') and '.keycrm.app' in url:
+                parsed = urlparse(url)
+                host = parsed.netloc
+                if host.count('.') == 2 and not host.startswith('api.'):
+                    url = url.replace(host, 'api.keycrm.app')
         
         return url
     
@@ -28,7 +28,6 @@ class URLParser:
             query_string = url
         
         if not query_string:
-            logger.warning("No query parameters found in URL")
             return {}
         
         params = parse_qs(query_string, keep_blank_values=True)
@@ -45,15 +44,11 @@ class URLParser:
             else:
                 result[key] = value
         
-        logger.info(f"Parsed {len(result)} parameters from URL")
-        logger.debug(f"Parameters: {result}")
-        
         return result
     
     @staticmethod
     def extract_filters(params: Dict[str, Any]) -> Dict[str, str]:
         filters = {k: v for k, v in params.items() if k.startswith('filters[')}
-        logger.debug(f"Extracted {len(filters)} filter parameters")
         return filters
     
     @staticmethod

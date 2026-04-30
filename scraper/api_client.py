@@ -1,13 +1,10 @@
 import httpx
 import time
-import logging
 import os
 from typing import Dict, Any, Optional
 from config.settings import settings
 from database.connection import DatabaseConnection
 from database.token_queries import TokenQueries
-
-logger = logging.getLogger(__name__)
 
 
 class KeyCRMClient:
@@ -50,7 +47,6 @@ class KeyCRMClient:
         url = endpoint if endpoint.startswith('http') else f"{self.base_url}{endpoint}"
         
         try:
-            logger.debug(f"{method} {url}")
             response = self.client.request(method, url, **kwargs)
             response.raise_for_status()
             
@@ -61,8 +57,6 @@ class KeyCRMClient:
             
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 401 and self.auto_refresh and not self.token_refreshed:
-                logger.warning("Token expired (401), attempting to refresh...")
-                
                 new_token = self._refresh_token()
                 
                 if new_token:
@@ -70,42 +64,33 @@ class KeyCRMClient:
                     self.client.headers['Authorization'] = f'Bearer {new_token}'
                     self.token_refreshed = True
                     
-                    logger.info("Token refreshed successfully, retrying request...")
                     return self._make_request(method, endpoint, **kwargs)
                 else:
-                    logger.error("Failed to refresh token")
                     raise
             else:
-                logger.error(f"HTTP error {e.response.status_code}: {e.response.text}")
                 raise
         except httpx.RequestError as e:
-            logger.error(f"Request error: {e}")
             raise
         except Exception as e:
-            logger.error(f"Unexpected error: {e}")
             raise
     
     def _refresh_token(self) -> Optional[str]:
         try:
             from scraper.auth import KeyCRMAuth
             
-            logger.info("Starting token refresh process...")
             auth = KeyCRMAuth(db=self.db)
             new_token = auth.extract_bearer_token()
             
             if self.db:
                 token_queries = TokenQueries(self.db)
                 token_queries.save_token(new_token, token_type='bearer_token')
-                logger.info("New token saved to database")
             
             if os.getenv('GITHUB_ACTIONS') == 'true':
                 self._update_github_secret('KEYCRM_BEARER_TOKEN', new_token)
             
-            logger.info("Token refreshed successfully ✓")
             return new_token
             
-        except Exception as e:
-            logger.error(f"Failed to refresh token: {e}")
+        except Exception:
             return None
     
     def _update_github_secret(self, secret_name: str, secret_value: str) -> bool:
@@ -117,10 +102,7 @@ class KeyCRMClient:
             repo = os.getenv('GITHUB_REPOSITORY')
             
             if not github_token or not repo:
-                logger.warning("GITHUB_TOKEN or GITHUB_REPOSITORY not set, skipping secret update")
                 return False
-            
-            logger.info(f"Updating GitHub Secret: {secret_name}")
             
             api_url = f"https://api.github.com/repos/{repo}/actions/secrets/{secret_name}"
             
@@ -146,11 +128,9 @@ class KeyCRMClient:
             })
             response.raise_for_status()
             
-            logger.info(f"GitHub Secret {secret_name} updated successfully ✓")
             return True
             
-        except Exception as e:
-            logger.error(f"Failed to update GitHub Secret: {e}")
+        except Exception:
             return False
     
     def get_orders(self, page: int = 1, per_page: Optional[int] = None, custom_filters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -167,19 +147,15 @@ class KeyCRMClient:
         if 'per_page' not in params:
             params['per_page'] = per_page
         
-        logger.info(f"Fetching orders page {page} with custom filters")
         return self._make_request('GET', '/orders', params=params)
     
     def get_order_by_id(self, order_id: int) -> Dict[str, Any]:
-        logger.info(f"Fetching order {order_id}")
         return self._make_request('GET', f'/orders/{order_id}')
     
     def get_statuses(self) -> Dict[str, Any]:
-        logger.info("Fetching statuses")
         return self._make_request('GET', '/orders/statuses', params={'with_disabled': 1})
     
     def get_users(self) -> Dict[str, Any]:
-        logger.info("Fetching users")
         return self._make_request('GET', '/users')
     
     def close(self):
@@ -201,43 +177,30 @@ class OrdersScraper:
         all_orders = []
         page = 1
         
-        if custom_filters:
-            logger.info("Starting to scrape orders with custom filters...")
-        else:
-            logger.info("Starting to scrape all orders...")
-        
         while True:
             if max_pages and page > max_pages:
-                logger.info(f"Reached max pages limit: {max_pages}")
                 break
             
             try:
                 response = self.client.get_orders(page=page, custom_filters=custom_filters)
-            except Exception as e:
-                logger.error(f"Failed to fetch page {page}: {e}")
+            except Exception:
                 break
             
             orders = response.get('data', [])
             if not orders:
-                logger.info(f"No orders on page {page}, stopping")
                 break
             
             all_orders.extend(orders)
-            logger.info(f"Page {page}: fetched {len(orders)} orders (total: {len(all_orders)})")
             
             links = response.get('links', {})
             if not links.get('next'):
-                logger.info("No more pages, stopping")
                 break
             
             page += 1
         
-        logger.info(f"Scraping completed: {len(all_orders)} orders from {page} pages")
         return all_orders
     
     def scrape_page(self, page: int = 1) -> list:
-        logger.info(f"Scraping page {page}")
         response = self.client.get_orders(page=page)
         orders = response.get('data', [])
-        logger.info(f"Fetched {len(orders)} orders from page {page}")
         return orders

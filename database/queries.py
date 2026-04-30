@@ -1,21 +1,22 @@
-import logging
 from typing import Optional, Dict, Any, List
-from datetime import datetime
-import json
+from datetime import datetime, date
 import pytz
 from database.connection import DatabaseConnection
-
-logger = logging.getLogger(__name__)
 
 KYIV_TZ = pytz.timezone('Europe/Kyiv')
 
 
-def utc_to_kyiv(dt: datetime) -> datetime:
+def utc_to_kyiv(dt):
     if dt is None:
         return None
-    if dt.tzinfo is None:
-        dt = pytz.UTC.localize(dt)
-    return dt.astimezone(KYIV_TZ)
+    if isinstance(dt, datetime):
+        if dt.tzinfo is not None:
+            return dt.astimezone(KYIV_TZ)
+        return pytz.UTC.localize(dt).astimezone(KYIV_TZ)
+    if isinstance(dt, date):
+        dt = datetime.combine(dt, datetime.min.time())
+        return pytz.UTC.localize(dt).astimezone(KYIV_TZ)
+    return dt
 
 
 def now_kyiv() -> datetime:
@@ -65,9 +66,9 @@ class OrderQueries:
         
         try:
             self.db.execute(query, params)
-            logger.info(f"Inserted order {order_data['id']}")
+            pass
         except Exception as e:
-            logger.error(f"Failed to insert order {order_data['id']}: {e}")
+            raise
             raise
     
     def update_order(self, order_data: Dict[str, Any]) -> None:
@@ -100,9 +101,9 @@ class OrderQueries:
         
         try:
             self.db.execute(query, params)
-            logger.info(f"Updated order {order_data['id']}")
+            pass
         except Exception as e:
-            logger.error(f"Failed to update order {order_data['id']}: {e}")
+            raise
             raise
     
     def upsert_order(self, order_data: Dict[str, Any]) -> str:
@@ -167,7 +168,7 @@ class OrderQueries:
     def delete_order(self, order_id: int) -> None:
         query = "DELETE FROM orders WHERE id = %s"
         self.db.execute(query, (order_id,))
-        logger.warning(f"Deleted order {order_id}")
+        pass
     
     def truncate_table(self) -> None:
         query = "TRUNCATE TABLE orders"
@@ -218,14 +219,14 @@ class OrderQueries:
                 params_list.append(params)
             except Exception as e:
                 errors += 1
-                logger.error(f"Failed to prepare order {order_data.get('id', 'unknown')}: {e}")
+                pass
         
         if params_list:
             try:
                 self.db.execute_batch(query, params_list)
-                logger.info(f"Batch upserted {len(params_list)} orders")
+                pass
             except Exception as e:
                 errors += len(params_list)
-                logger.error(f"Batch upsert failed: {e}")
+                pass
         
         return {'inserted': 0, 'updated': len(params_list) - errors, 'errors': errors}

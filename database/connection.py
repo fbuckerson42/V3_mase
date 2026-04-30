@@ -1,10 +1,7 @@
 import psycopg2
 from psycopg2.extras import RealDictCursor, execute_values
 from typing import Optional
-import logging
 from config.settings import settings
-
-logger = logging.getLogger(__name__)
 
 
 class DatabaseConnection:
@@ -14,15 +11,12 @@ class DatabaseConnection:
     
     def connect(self) -> None:
         try:
-            logger.info("Connecting to PostgreSQL database...")
             self.connection = psycopg2.connect(
                 settings.DATABASE_URL,
                 cursor_factory=RealDictCursor
             )
             self.cursor = self.connection.cursor()
-            logger.info("Successfully connected to database")
         except psycopg2.Error as e:
-            logger.error(f"Failed to connect to database: {e}")
             raise
     
     def disconnect(self) -> None:
@@ -30,7 +24,6 @@ class DatabaseConnection:
             self.cursor.close()
         if self.connection:
             self.connection.close()
-            logger.info("Database connection closed")
     
     def commit(self) -> None:
         if self.connection:
@@ -47,14 +40,12 @@ class DatabaseConnection:
             else:
                 self.cursor.execute(query)
         except psycopg2.Error as e:
-            logger.error(f"Query execution failed: {e}")
             raise
     
     def execute_batch(self, query: str, params_list: list) -> int:
         try:
             return execute_values(self.cursor, query, params_list, template=None, page_size=1000)
         except psycopg2.Error as e:
-            logger.error(f"Batch execution failed: {e}")
             raise
     
     def fetchone(self, query: str, params: tuple = None) -> Optional[dict]:
@@ -65,7 +56,6 @@ class DatabaseConnection:
                 self.cursor.execute(query)
             return self.cursor.fetchone()
         except psycopg2.Error as e:
-            logger.error(f"Query execution failed: {e}")
             raise
     
     def fetchall(self, query: str, params: tuple = None) -> list:
@@ -76,19 +66,15 @@ class DatabaseConnection:
                 self.cursor.execute(query)
             return self.cursor.fetchall()
         except psycopg2.Error as e:
-            logger.error(f"Query execution failed: {e}")
             raise
     
     def run_migration(self, migration_file: str) -> None:
         try:
-            logger.info(f"Running migration: {migration_file}")
             with open(migration_file, 'r', encoding='utf-8') as f:
                 sql = f.read()
             self.cursor.execute(sql)
             self.commit()
-            logger.info(f"Migration {migration_file} completed successfully")
         except Exception as e:
-            logger.error(f"Migration failed: {e}")
             self.rollback()
             raise
     
