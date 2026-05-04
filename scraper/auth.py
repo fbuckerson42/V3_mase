@@ -30,10 +30,8 @@ class KeyCRMAuth:
             except Exception:
                 pass
         
-        is_github_actions = os.getenv('GITHUB_ACTIONS') == 'true'
-
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=is_github_actions)
+            browser = p.chromium.launch(headless=True)
             context = browser.new_context(
                 user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 viewport={'width': 1920, 'height': 1080},
@@ -57,22 +55,13 @@ class KeyCRMAuth:
 
             try:
                 page.goto(f"{self.web_url}/login", wait_until="domcontentloaded", timeout=60000)
-                if os.getenv('GITHUB_ACTIONS') == 'true':
-                    page.screenshot(path='01_login_page.png')
-                    with open('01_login_page.html', 'w', encoding='utf-8') as f:
-                        f.write(page.content())
 
                 page.wait_for_selector('input', timeout=10000)
-                if os.getenv('GITHUB_ACTIONS') == 'true':
-                    page.screenshot(path='02_form_visible.png')
 
                 email_input = page.locator('input').first
                 password_input = page.locator('input[type="password"]').first
                 email_input.fill(self.login)
                 password_input.fill(self.password)
-
-                if os.getenv('GITHUB_ACTIONS') == 'true':
-                    page.screenshot(path='03_credentials_filled.png')
 
                 try:
                     page.locator('text=Увійти').click()
@@ -98,12 +87,6 @@ class KeyCRMAuth:
                         pass
                 
                 if not login_successful and (current_url.endswith('/login') or current_url.endswith('/login/')):
-                    page.screenshot(path='04_login_failed.png')
-                    with open('04_login_failed.html', 'w', encoding='utf-8') as f:
-                        f.write(page.content())
-                    page_content = page.content()
-                    with open('04_login_failed_full.html', 'w', encoding='utf-8') as f:
-                        f.write(page_content)
                     error_msg = "No visible error message"
                     for selector in ['text=Помилка', 'text=Error', 'text=Invalid', 'text=Невірн']:
                         try:

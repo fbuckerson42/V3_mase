@@ -1,4 +1,4 @@
-name: KeyCRM Scraper
+name: miyatosh_make_push
 
 on:
   workflow_dispatch:
@@ -37,7 +37,7 @@ jobs:
           KEYCRM_LOGIN: ${{ secrets.KEYCRM_LOGIN }}
           KEYCRM_PASSWORD: ${{ secrets.KEYCRM_PASSWORD }}
         run: |
-          python main.py migrate
+          python main.py migrate-maket
       
       - name: Authenticate (get token)
         env:
@@ -62,16 +62,6 @@ jobs:
           ORDERS_PER_PAGE: 100
           REQUEST_TIMEOUT: 30
           REQUEST_DELAY: 0.5
-          LOG_LEVEL: INFO
           AUTO_REFRESH_TOKEN: true
         run: |
-          python main.py scrape
-      
-      - name: Show statistics
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          KEYCRM_BASE_URL: ${{ secrets.KEYCRM_BASE_URL }}
-          KEYCRM_LOGIN: ${{ secrets.KEYCRM_LOGIN }}
-          KEYCRM_PASSWORD: ${{ secrets.KEYCRM_PASSWORD }}
-        run: |
-          python main.py stats
+          python main.py scrape-maket
